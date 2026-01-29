@@ -156,6 +156,21 @@ export default function HomePage() {
     setMicStatus(track.enabled ? "active" : "muted");
   }
 
+  /* ================= TEST MIC ================= */
+  function testMic() {
+    if (!localStreamRef.current) {
+      alert("Mic tidak tersedia.");
+      return;
+    }
+
+    const testAudio = document.createElement("audio");
+    testAudio.srcObject = localStreamRef.current;
+    testAudio.autoplay = true;
+    testAudio.muted = false;
+    testAudio.play().catch(() => { });
+    alert("Jika terdengar suara Anda sendiri, mic berfungsi.");
+  }
+
   function forcePlayRemoteAudio() {
     if (remoteAudioRef.current) remoteAudioRef.current.play().catch(() => { });
   }
@@ -172,7 +187,6 @@ export default function HomePage() {
     });
     pcRef.current = pc;
 
-    // Tambahkan track mic jika ada
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
     }
@@ -236,19 +250,44 @@ export default function HomePage() {
                   micStatus === "muted" ? "🔇 Mikrofon Muted" : "❌ Mikrofon Error"}
               </span>
             </div>
-            <button
-              className={`px-4 py-2 rounded-lg font-medium transition ${micStatus === "broken"
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : micStatus === "active"
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-green-500 hover:bg-green-600 text-white"
-                }`}
-              onClick={toggleMic}
-              disabled={micStatus === "broken"} // ✨ Bisa toggle meski belum call
-            >
-              {micStatus === "active" ? "Mute" : "Unmute"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                className={`px-4 py-2 rounded-lg font-medium transition ${micStatus === "broken"
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : micStatus === "active"
+                    ? "bg-red-500 hover:bg-red-600 text-white"
+                    : "bg-green-500 hover:bg-green-600 text-white"
+                  }`}
+                onClick={toggleMic}
+                disabled={micStatus === "broken"}
+              >
+                {micStatus === "active" ? "Mute" : "Unmute"}
+              </button>
+
+              <button
+                className={`px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition`}
+                onClick={testMic}
+                disabled={micStatus === "broken"}
+              >
+                🎧 Test Mic
+              </button>
+            </div>
           </div>
+
+          {/* Mic Volume Meter */}
+          {micStatus !== "broken" && (
+            <div className="mt-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Volume:</span>
+                <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-75"
+                    style={{ width: `${speaking[clientId] || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Online Users */}
