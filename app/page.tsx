@@ -25,6 +25,8 @@ export default function HomePage() {
   const localStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
+  const iceQueueRef = useRef<any[]>([]); // Queue ICE sementara
+
   /* ================= INIT ================= */
   useEffect(() => {
     let id = localStorage.getItem("clientId");
@@ -34,12 +36,12 @@ export default function HomePage() {
     }
     setClientId(id);
 
+    // Request mic
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         localStreamRef.current = stream;
         setMicStatus("active");
 
-        // Mic analyser
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
@@ -57,7 +59,7 @@ export default function HomePage() {
           }
           const rms = Math.sqrt(sumSquares / dataArray.length);
           const volume = Math.min(100, rms * 200);
-          setSpeaking((prev) => ({ ...prev, [id!]: volume }));
+          setSpeaking(prev => ({ ...prev, [id!]: volume }));
           animationFrameRef.current = requestAnimationFrame(animateMic);
         };
         animateMic();
@@ -68,7 +70,7 @@ export default function HomePage() {
         alert("Microphone tidak terdeteksi atau izin ditolak.");
       });
 
-    // Connect WS
+    // WebSocket
     const ws = new WebSocket("wss://ws-voicertc-production.up.railway.app");
     wsRef.current = ws;
 
@@ -135,7 +137,6 @@ export default function HomePage() {
     setCallStatus("connected");
     setIncoming(null);
 
-    // Pastikan remote audio bisa play setelah user gesture
     forcePlayRemoteAudio();
   }
 
@@ -145,6 +146,7 @@ export default function HomePage() {
 
     pcRef.current?.close();
     pcRef.current = null;
+    iceQueueRef.current = [];
     setCurrentPeer(null);
     setCurrentPeerName("");
     setCallStatus("idle");
@@ -157,13 +159,11 @@ export default function HomePage() {
     setMicStatus(track.enabled ? "active" : "muted");
   }
 
-  /* ================= TEST MIC ================= */
   function toggleTestMic() {
     if (!localStreamRef.current) {
       alert("Mic tidak tersedia.");
       return;
     }
-
     if (!testMicOn) {
       if (!testAudioRef.current) {
         testAudioRef.current = document.createElement("audio");
@@ -194,15 +194,18 @@ export default function HomePage() {
     });
     pcRef.current = pc;
 
+    // Tambahkan local track
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
     }
 
+    // ICE candidate
     pc.onicecandidate = e => {
       if (e.candidate)
         wsRef.current?.send(JSON.stringify({ type: "ice", from: clientId, to: peerId, candidate: e.candidate }));
     };
 
+    // Remote track
     pc.ontrack = e => {
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = e.streams[0];
@@ -212,9 +215,7 @@ export default function HomePage() {
       }
     };
 
-    pc.oniceconnectionstatechange = () => {
-      console.log("ICE state:", pc.iceConnectionState);
-    };
+    pc.oniceconnectionstatechange = () => console.log("ICE state:", pc.iceConnectionState);
 
     if (initiator) {
       const offer = await pc.createOffer({ offerToReceiveAudio: true });
@@ -226,7 +227,13 @@ export default function HomePage() {
   async function handleOffer(offer: any, from: string) {
     await startWebRTC(from, false);
     if (!pcRef.current) return;
+
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+
+    // Drain queued ICE
+    iceQueueRef.current.forEach(c => pcRef.current?.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn));
+    iceQueueRef.current = [];
+
     const answer = await pcRef.current.createAnswer({ offerToReceiveAudio: true });
     await pcRef.current.setLocalDescription(answer);
     wsRef.current?.send(JSON.stringify({ type: "answer", from: clientId, to: from, answer }));
@@ -235,11 +242,19 @@ export default function HomePage() {
   async function handleAnswer(answer: any) {
     if (!pcRef.current) return;
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+
+    // Drain queued ICE
+    iceQueueRef.current.forEach(c => pcRef.current?.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn));
+    iceQueueRef.current = [];
   }
 
   async function handleIce(candidate: any) {
-    if (!pcRef.current) return;
-    await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+    if (!pcRef.current || !pcRef.current.remoteDescription) {
+      // Queue ICE candidate sementara
+      iceQueueRef.current.push(candidate);
+    } else {
+      await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+    }
   }
 
   /* ================= UI ================= */
