@@ -33,7 +33,7 @@ export default function HomePage() {
     }
     setClientId(id);
 
-    const ws = new WebSocket("ws://192.168.100.32:3001");
+    const ws = new WebSocket("ws://ws-voicertc-production.up.railway.app");
     wsRef.current = ws;
 
     ws.onopen = () => {
