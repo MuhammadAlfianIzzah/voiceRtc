@@ -16,17 +16,17 @@ export default function HomePage() {
   const [micStatus, setMicStatus] = useState<"active" | "muted" | "broken">("muted");
   const [callStatus, setCallStatus] = useState<"idle" | "calling" | "connected">("idle");
   const [speaking, setSpeaking] = useState<Record<string, number>>({});
+  const [testMicOn, setTestMicOn] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const testAudioRef = useRef<HTMLAudioElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const remoteAnimationFrameRef = useRef<number | null>(null);
 
   /* ================= INIT ================= */
   useEffect(() => {
-    // Set client ID
     let id = localStorage.getItem("clientId");
     if (!id) {
       id = crypto.randomUUID();
@@ -34,13 +34,12 @@ export default function HomePage() {
     }
     setClientId(id);
 
-    // Request mic immediately
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         localStreamRef.current = stream;
         setMicStatus("active");
 
-        // Setup mic analyser
+        // Mic analyser
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
@@ -116,7 +115,6 @@ export default function HomePage() {
     return () => {
       ws.close();
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (remoteAnimationFrameRef.current) cancelAnimationFrame(remoteAnimationFrameRef.current);
     };
   }, []);
 
@@ -136,6 +134,9 @@ export default function HomePage() {
     setCurrentPeerName(incoming?.name || "Unknown");
     setCallStatus("connected");
     setIncoming(null);
+
+    // Pastikan remote audio bisa play setelah user gesture
+    forcePlayRemoteAudio();
   }
 
   function hangupCall(sendSignal = true) {
@@ -157,18 +158,24 @@ export default function HomePage() {
   }
 
   /* ================= TEST MIC ================= */
-  function testMic() {
+  function toggleTestMic() {
     if (!localStreamRef.current) {
       alert("Mic tidak tersedia.");
       return;
     }
 
-    const testAudio = document.createElement("audio");
-    testAudio.srcObject = localStreamRef.current;
-    testAudio.autoplay = true;
-    testAudio.muted = false;
-    testAudio.play().catch(() => { });
-    alert("Jika terdengar suara Anda sendiri, mic berfungsi.");
+    if (!testMicOn) {
+      if (!testAudioRef.current) {
+        testAudioRef.current = document.createElement("audio");
+        testAudioRef.current.autoplay = true;
+        testAudioRef.current.srcObject = localStreamRef.current;
+      }
+      testAudioRef.current.play().catch(() => { });
+      setTestMicOn(true);
+    } else {
+      testAudioRef.current?.pause();
+      setTestMicOn(false);
+    }
   }
 
   function forcePlayRemoteAudio() {
@@ -201,8 +208,12 @@ export default function HomePage() {
         remoteAudioRef.current.srcObject = e.streams[0];
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
-        remoteAudioRef.current.play().catch(() => { });
+        forcePlayRemoteAudio();
       }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log("ICE state:", pc.iceConnectionState);
     };
 
     if (initiator) {
@@ -266,10 +277,10 @@ export default function HomePage() {
 
               <button
                 className={`px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition`}
-                onClick={testMic}
+                onClick={toggleTestMic}
                 disabled={micStatus === "broken"}
               >
-                🎧 Test Mic
+                {testMicOn ? "Stop Test Mic" : "🎧 Test Mic"}
               </button>
             </div>
           </div>
