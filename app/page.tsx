@@ -249,16 +249,19 @@ export default function HomePage() {
       const [remoteStream] = e.streams;
       console.log("🎵 Remote track diterima:", remoteStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
 
+      // Enable semua track audio
       remoteStream.getAudioTracks().forEach(track => {
         track.enabled = true;
         console.log("🎚️ Remote track enabled", track);
       });
 
+      // Pasang ke audio element
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
 
+        // Coba play dengan retry
         const tryPlay = () => {
           remoteAudioRef.current?.play()
             .then(() => console.log("✅ Remote audio playing"))
@@ -269,8 +272,32 @@ export default function HomePage() {
         };
         tryPlay();
       }
-    };
 
+      // Tracking volume lawan
+      trackRemoteVolume(remoteStream);
+    };
+    function trackRemoteVolume(stream: MediaStream) {
+      const audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const animateRemote = () => {
+        analyser.getByteFrequencyData(dataArray);
+        let sumSquares = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const val = dataArray[i] / 255;
+          sumSquares += val * val;
+        }
+        const rms = Math.sqrt(sumSquares / dataArray.length);
+        const volume = rms * 100; // 0-100
+        console.log("🎤 Remote volume:", volume.toFixed(2));
+        requestAnimationFrame(animateRemote);
+      };
+      animateRemote();
+    }
     pc.oniceconnectionstatechange = () => console.log("ICE state:", pc.iceConnectionState);
 
     if (initiator) {
