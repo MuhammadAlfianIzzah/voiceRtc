@@ -222,9 +222,17 @@ export default function HomePage() {
       console.log("🎵 Remote track received:", e.track.kind);
       const [remoteStream] = e.streams;
       console.log("Remote stream tracks:", remoteStream.getTracks());
+      console.log("Remote track:", e.track);
       remoteStream.getTracks().forEach(track => {
         console.log(`Track ${track.kind}:`, track.enabled, track.muted, track.readyState);
       });
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.muted = false;
+        remoteAudioRef.current.volume = 1;
+        remoteAudioRef.current.play().then(() => console.log("✅ Remote audio playing"))
+          .catch(err => console.error("❌ Remote audio failed:", err));
+      }
       if (remoteAudioRef.current && remoteStream) {
         remoteAudioRef.current.srcObject = remoteStream;
         remoteAudioRef.current.muted = false;
