@@ -140,7 +140,13 @@ export default function HomePage() {
   function callUser(to: string) {
     console.log("📞 Calling user:", to);
     const user = users.find(u => u.client_id === to);
+
+    // Mulai WebRTC sebagai initiator
+    startWebRTC(to, true);
+
+    // Kirim sinyal call via WS
     wsRef.current?.send(JSON.stringify({ type: "call", from: clientId, to }));
+
     setCurrentPeer(to);
     setCurrentPeerName(user?.name || "Unknown");
     setCallStatus("calling");
