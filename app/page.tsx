@@ -137,16 +137,21 @@ export default function HomePage() {
     setCallStatus("connected");
     setIncoming(null);
 
-    // Force play remote audio setelah user gesture (klik)
-    setTimeout(() => {
+    // Tambahkan delay lebih lama dan coba beberapa kali
+    const attemptPlay = () => {
       if (remoteAudioRef.current) {
-        remoteAudioRef.current.play().catch(err => {
-          console.warn("Autoplay remote audio blocked:", err);
-        });
+        remoteAudioRef.current.muted = false; // Pastikan unmuted
+        remoteAudioRef.current.volume = 1;
+        remoteAudioRef.current.play()
+          .then(() => console.log("✅ Remote audio playing"))
+          .catch(err => {
+            console.warn("⚠️ Autoplay blocked:", err);
+            setTimeout(attemptPlay, 200); // Retry
+          });
       }
-    }, 50);
+    };
+    setTimeout(attemptPlay, 100);
   }
-
   function hangupCall(sendSignal = true) {
     if (sendSignal && currentPeer)
       wsRef.current?.send(JSON.stringify({ type: "hangup", from: clientId, to: currentPeer }));
@@ -214,17 +219,25 @@ export default function HomePage() {
 
     // Remote track
     pc.ontrack = e => {
+      console.log("🎵 Remote track received:", e.track.kind);
       const [remoteStream] = e.streams;
+      console.log("Remote stream tracks:", remoteStream.getTracks());
+      remoteStream.getTracks().forEach(track => {
+        console.log(`Track ${track.kind}:`, track.enabled, track.muted, track.readyState);
+      });
       if (remoteAudioRef.current && remoteStream) {
         remoteAudioRef.current.srcObject = remoteStream;
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
-        remoteAudioRef.current.play().catch(err => {
-          console.warn("Remote audio play failed:", err);
-        });
+
+        // Play setelah srcObject di-set
+        setTimeout(() => {
+          remoteAudioRef.current?.play()
+            .then(() => console.log("✅ Remote audio started"))
+            .catch(err => console.error("❌ Remote audio failed:", err));
+        }, 100);
       }
     };
-
     pc.oniceconnectionstatechange = () => console.log("ICE state:", pc.iceConnectionState);
 
     if (initiator) {
