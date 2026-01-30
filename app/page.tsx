@@ -25,10 +25,7 @@ export default function HomePage() {
   const localStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const iceQueueRef = useRef<any[]>([]);
-
-  /* ================= INIT ================= */
   useEffect(() => {
-    // Generate clientId
     let id = localStorage.getItem("clientId");
     if (!id) {
       id = crypto.randomUUID();
@@ -36,22 +33,17 @@ export default function HomePage() {
     }
     setClientId(id);
     console.log("🔹 Client ID:", id);
-
-    // Get microphone
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         localStreamRef.current = stream;
         setMicStatus("active");
         console.log("🎤 Mic ready:", stream.getTracks());
-
-        // Mic volume meter
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         source.connect(analyser);
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
         const animateMic = () => {
           analyser.getByteFrequencyData(dataArray);
           let sumSquares = 0;
@@ -72,15 +64,12 @@ export default function HomePage() {
         alert("Microphone tidak tersedia atau izin ditolak.");
       });
 
-    // WebSocket connection
     const ws = new WebSocket("wss://ws-voicertc-production.up.railway.app");
     wsRef.current = ws;
-
     ws.onopen = () => {
       console.log("✅ WS connected");
       ws.send(JSON.stringify({ type: "join", client_id: id, name: "User-" + id.slice(0, 4) }));
     };
-
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
       console.log("📨 WS message:", msg);
@@ -128,8 +117,6 @@ export default function HomePage() {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, []);
-
-  /* ================= CALL CONTROL ================= */
   function callUser(to: string) {
     if (callStatus !== "idle") return;
     console.log("📞 Calling:", to);
@@ -192,36 +179,28 @@ export default function HomePage() {
     remoteAudioRef.current.volume = 1;
     remoteAudioRef.current.play().catch(() => setTimeout(forcePlayRemoteAudio, 200));
   }
-
-  /* ================= WEBRTC ================= */
   async function startWebRTC(peerId: string, initiator: boolean) {
     if (pcRef.current) return;
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
     pcRef.current = pc;
-
-    // Add local tracks
     localStreamRef.current?.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
 
     pc.onicecandidate = e => {
       if (e.candidate) wsRef.current?.send(JSON.stringify({ type: "ice", from: clientId, to: peerId, candidate: e.candidate }));
     };
-
     pc.ontrack = e => {
       const [stream] = e.streams;
       if (remoteAudioRef.current) remoteAudioRef.current.srcObject = stream;
       trackRemoteVolume(stream);
     };
-
     pc.oniceconnectionstatechange = () => console.log("ICE state:", pc.iceConnectionState);
-
     if (initiator) {
       const offer = await pc.createOffer({ offerToReceiveAudio: true });
       await pc.setLocalDescription(offer);
       wsRef.current?.send(JSON.stringify({ type: "offer", from: clientId, to: peerId, offer }));
     }
-
     async function trackRemoteVolume(stream: MediaStream) {
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
@@ -241,7 +220,6 @@ export default function HomePage() {
       animate();
     }
   }
-
   async function handleOffer(offer: any, from: string) {
     await startWebRTC(from, false);
     if (!pcRef.current) return;
@@ -268,7 +246,6 @@ export default function HomePage() {
     }
   }
 
-  /* ================= UI ================= */
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-2xl mx-auto">
@@ -346,6 +323,17 @@ export default function HomePage() {
         <audio ref={remoteAudioRef} autoPlay playsInline muted={false} />
 
         {currentPeer && <button onClick={forcePlayRemoteAudio} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg">▶️ Putar Suara Lawan</button>}
+        {/* Tombol Akhiri Panggilan */}
+        {callStatus !== "idle" && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => hangupCall()}
+              className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-md transition"
+            >
+              📴 Akhiri Panggilan
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
