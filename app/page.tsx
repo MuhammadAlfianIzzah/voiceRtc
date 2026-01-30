@@ -264,45 +264,45 @@ export default function HomePage() {
       {/* Main Container */}
       <div className="relative z-10 flex flex-col h-screen">
         {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 bg-[#1a1a1c] border-b border-white/5">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <header className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-[#1a1a1c] border-b border-white/5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
               </div>
               <div>
-                <h1 className="text-white font-medium text-lg">Voice Meet</h1>
-                <p className="text-white/50 text-xs font-mono">ID: {clientId.slice(0, 8)}</p>
+                <h1 className="text-white font-medium text-base sm:text-lg">Voice Meet</h1>
+                <p className="text-white/50 text-[10px] sm:text-xs font-mono hidden sm:block">ID: {clientId.slice(0, 8)}</p>
               </div>
             </div>
           </div>
 
           {/* Status Indicator */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/5 border border-white/10">
             <div className={`w-2 h-2 rounded-full ${micStatus === "active" ? "bg-green-400 animate-pulse" :
                 micStatus === "muted" ? "bg-gray-400" : "bg-red-400"
               }`}></div>
-            <span className="text-white/70 text-sm">
+            <span className="text-white/70 text-xs sm:text-sm">
               {micStatus === "active" ? "Connected" : micStatus === "muted" ? "Muted" : "Error"}
             </span>
           </div>
         </header>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex">
+        <div className="flex-1 flex flex-col lg:flex-row">
           {/* Center Stage - Call View */}
-          <div className="flex-1 flex flex-col items-center justify-center p-8">
+          <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
             {callStatus === "connected" && (
-              <div className="w-full max-w-3xl">
+              <div className="w-full max-w-3xl px-4">
                 {/* Active Call Card */}
-                <div className="bg-[#2d2e30] rounded-3xl shadow-2xl p-8 border border-white/10">
-                  <div className="flex flex-col items-center text-center mb-8">
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-5xl font-bold mb-4 shadow-2xl ring-4 ring-blue-500/20">
-                      {currentPeerName[0]?.toUpperCase() || "U"}
+                <div className="bg-[#2d2e30] rounded-3xl shadow-2xl p-6 sm:p-8 border border-white/10">
+                  <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl sm:text-5xl font-bold mb-4 shadow-2xl ring-4 ring-blue-500/20">
+                      {currentPeerName?.[0]?.toUpperCase() || "U"}
                     </div>
-                    <h2 className="text-white text-3xl font-semibold mb-2">{currentPeerName}</h2>
+                    <h2 className="text-white text-2xl sm:text-3xl font-semibold mb-2">{currentPeerName}</h2>
                     <div className="flex items-center gap-2 text-green-400">
                       <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                       <span className="text-sm font-medium">Connected</span>
@@ -310,7 +310,7 @@ export default function HomePage() {
                   </div>
 
                   {/* Call Controls */}
-                  <div className="flex items-center justify-center gap-4">
+                  <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
                     <button
                       onClick={toggleMic}
                       disabled={micStatus === "broken"}
@@ -370,13 +370,13 @@ export default function HomePage() {
             )}
 
             {callStatus === "calling" && (
-              <div className="w-full max-w-3xl">
-                <div className="bg-[#2d2e30] rounded-3xl shadow-2xl p-12 border border-white/10 text-center">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-5xl font-bold mb-6 mx-auto shadow-2xl ring-4 ring-blue-500/20 animate-pulse">
-                    {currentPeerName[0]?.toUpperCase() || "U"}
+              <div className="w-full max-w-3xl px-4">
+                <div className="bg-[#2d2e30] rounded-3xl shadow-2xl p-8 sm:p-12 border border-white/10 text-center">
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl sm:text-5xl font-bold mb-6 mx-auto shadow-2xl ring-4 ring-blue-500/20 animate-pulse">
+                    {currentPeerName?.[0]?.toUpperCase() || "U"}
                   </div>
-                  <h2 className="text-white text-3xl font-semibold mb-2">Calling...</h2>
-                  <p className="text-white/60 text-xl mb-8">{currentPeerName}</p>
+                  <h2 className="text-white text-2xl sm:text-3xl font-semibold mb-2">Calling...</h2>
+                  <p className="text-white/60 text-lg sm:text-xl mb-8">{currentPeerName}</p>
                   <button
                     onClick={() => hangupCall()}
                     className="px-8 py-4 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -401,11 +401,11 @@ export default function HomePage() {
           </div>
 
           {/* Right Sidebar - Participants */}
-          <aside className="w-96 bg-[#1a1a1c] border-l border-white/5 flex flex-col">
+          <aside className="w-full lg:w-96 bg-[#1a1a1c] border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col max-h-[50vh] lg:max-h-none">
             {/* Sidebar Header */}
-            <div className="p-6 border-b border-white/5">
-              <h3 className="text-white font-semibold text-lg mb-1">Participants</h3>
-              <p className="text-white/50 text-sm">{users.length} available</p>
+            <div className="p-4 sm:p-6 border-b border-white/5">
+              <h3 className="text-white font-semibold text-base sm:text-lg mb-1">Participants</h3>
+              <p className="text-white/50 text-xs sm:text-sm">{users.length} available</p>
             </div>
 
             {/* Mic Test Section */}
@@ -449,7 +449,7 @@ export default function HomePage() {
                         <div className="flex items-center gap-3 mb-3">
                           <div className="relative">
                             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                              {u.name[0].toUpperCase()}
+                              {u?.name?.[0]?.toUpperCase() || "U"}
                             </div>
                             <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 border-2 border-[#1a1a1c] rounded-full"></div>
                           </div>
@@ -492,28 +492,28 @@ export default function HomePage() {
 
       {/* Incoming Call Modal */}
       {incoming && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-[#2d2e30] rounded-3xl shadow-2xl max-w-md w-full mx-4 p-10 text-center border border-white/10">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-5xl font-bold mb-6 mx-auto shadow-2xl ring-4 ring-blue-500/20 animate-bounce">
-              {incoming.name[0]?.toUpperCase() || "U"}
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
+          <div className="bg-[#2d2e30] rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-10 text-center border border-white/10">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl sm:text-5xl font-bold mb-4 sm:mb-6 mx-auto shadow-2xl ring-4 ring-blue-500/20 animate-bounce">
+              {incoming?.name?.[0]?.toUpperCase() || "U"}
             </div>
-            <h3 className="text-white text-2xl font-semibold mb-2">Incoming call</h3>
-            <p className="text-white/60 text-lg mb-8">{incoming.name}</p>
-            <div className="flex gap-4">
+            <h3 className="text-white text-xl sm:text-2xl font-semibold mb-2">Incoming call</h3>
+            <p className="text-white/60 text-base sm:text-lg mb-6 sm:mb-8">{incoming.name}</p>
+            <div className="flex gap-3 sm:gap-4">
               <button
                 onClick={() => hangupCall()}
-                className="flex-1 px-8 py-4 rounded-full bg-white/10 hover:bg-white/15 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                className="flex-1 px-4 sm:px-8 py-3 sm:py-4 rounded-full bg-white/10 hover:bg-white/15 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 Decline
               </button>
               <button
                 onClick={() => acceptCall(incoming.from)}
-                className="flex-1 px-8 py-4 rounded-full bg-green-500 hover:bg-green-600 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                className="flex-1 px-4 sm:px-8 py-3 sm:py-4 rounded-full bg-green-500 hover:bg-green-600 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-sm sm:text-base"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
                 Accept
