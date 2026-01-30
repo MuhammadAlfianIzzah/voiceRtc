@@ -35,11 +35,14 @@ export default function HomePage() {
     }
     setClientId(id);
 
+    console.log("🔹 Client ID:", id);
+
     // Request mic
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         localStreamRef.current = stream;
         setMicStatus("active");
+        console.log("🎤 Mic ready, tracks:", stream.getTracks());
 
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
@@ -64,7 +67,7 @@ export default function HomePage() {
         animateMic();
       })
       .catch(err => {
-        console.error("Mic error:", err);
+        console.error("❌ Mic error:", err);
         setMicStatus("broken");
         alert("Microphone tidak terdeteksi atau izin ditolak.");
       });
@@ -74,44 +77,57 @@ export default function HomePage() {
     wsRef.current = ws;
 
     ws.onopen = () => {
+      console.log("✅ WS connected");
       ws.send(JSON.stringify({ type: "join", client_id: id, name: "User-" + id.slice(0, 4) }));
     };
 
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
+      console.log("📨 WS message received:", msg);
+
       switch (msg.type) {
         case "user-list":
           setUsers(msg.users.filter((u: User) => u.client_id !== id));
           break;
         case "call":
+          console.log("📞 Incoming call from:", msg.from);
           setIncoming(msg);
           break;
         case "call-accept":
-          startWebRTC(msg.from, false); // non-initiator
+          console.log("✅ Call accepted by:", msg.from);
+          startWebRTC(msg.from, false);
           setCurrentPeer(msg.from);
           setCurrentPeerName(msg.name || "Unknown");
           setCallStatus("connected");
           break;
         case "call-rejected":
+          console.warn("❌ Call rejected");
           alert("Panggilan ditolak");
           setCurrentPeer(null);
           setCallStatus("idle");
           break;
         case "offer":
+          console.log("📤 Offer received from:", msg.from);
           handleOffer(msg.offer, msg.from);
           break;
         case "answer":
+          console.log("📥 Answer received");
           handleAnswer(msg.answer);
           break;
         case "ice":
+          console.log("🧊 ICE candidate received");
           handleIce(msg.candidate);
           break;
         case "call-ended":
+          console.warn("📴 Call ended");
           hangupCall(false);
           alert("Panggilan berakhir");
           break;
       }
     };
+
+    ws.onerror = (e) => console.error("⚠️ WS error:", e);
+    ws.onclose = () => console.log("❌ WS closed");
 
     return () => {
       ws.close();
@@ -121,6 +137,7 @@ export default function HomePage() {
 
   /* ================= CALL CONTROL ================= */
   function callUser(to: string) {
+    console.log("📞 Calling user:", to);
     const user = users.find(u => u.client_id === to);
     wsRef.current?.send(JSON.stringify({ type: "call", from: clientId, to }));
     setCurrentPeer(to);
@@ -129,6 +146,7 @@ export default function HomePage() {
   }
 
   function acceptCall(from: string) {
+    console.log("✅ Accepting call from:", from);
     startWebRTC(from, false);
     wsRef.current?.send(JSON.stringify({ type: "call-accept", from: clientId, to: from }));
     setCurrentPeer(from);
@@ -136,15 +154,15 @@ export default function HomePage() {
     setCallStatus("connected");
     setIncoming(null);
 
-    // Force play remote audio setelah user klik accept
     setTimeout(() => {
-      remoteAudioRef.current?.play().catch(() => {
-        console.warn("Autoplay gagal, pengguna harus klik tombol play manual");
-      });
+      remoteAudioRef.current?.play()
+        .then(() => console.log("✅ Remote audio autoplay started"))
+        .catch(err => console.warn("⚠️ Remote audio autoplay failed", err));
     }, 200);
   }
 
   function hangupCall(sendSignal = true) {
+    console.log("📴 Hanging up call");
     if (sendSignal && currentPeer)
       wsRef.current?.send(JSON.stringify({ type: "hangup", from: clientId, to: currentPeer }));
 
@@ -160,6 +178,7 @@ export default function HomePage() {
     const track = localStreamRef.current?.getAudioTracks()[0];
     if (!track) return;
     track.enabled = !track.enabled;
+    console.log("🎤 Mic toggled:", track.enabled ? "active" : "muted");
     setMicStatus(track.enabled ? "active" : "muted");
   }
 
@@ -174,21 +193,33 @@ export default function HomePage() {
         testAudioRef.current.autoplay = true;
         testAudioRef.current.srcObject = localStreamRef.current;
       }
-      testAudioRef.current.play().catch(() => { });
+      testAudioRef.current.play()
+        .then(() => console.log("🎧 Test mic started"))
+        .catch(err => console.warn("⚠️ Test mic play failed", err));
       setTestMicOn(true);
     } else {
       testAudioRef.current?.pause();
+      console.log("🎧 Test mic stopped");
       setTestMicOn(false);
     }
   }
 
   function forcePlayRemoteAudio() {
-    if (remoteAudioRef.current) remoteAudioRef.current.play().catch(() => { });
+    console.log("▶️ forcePlayRemoteAudio clicked", { currentPeer, audioEl: remoteAudioRef.current });
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.play()
+        .then(() => console.log("✅ Remote audio manual play started"))
+        .catch(err => console.warn("⚠️ Remote audio manual play failed", err));
+    } else {
+      console.warn("❌ remoteAudioRef.current belum siap");
+    }
   }
 
   /* ================= WEBRTC ================= */
   async function startWebRTC(peerId: string, initiator: boolean) {
     if (pcRef.current) return;
+
+    console.log("🔹 startWebRTC", { peerId, initiator });
 
     const pc = new RTCPeerConnection({
       iceServers: [
@@ -198,29 +229,39 @@ export default function HomePage() {
     });
     pcRef.current = pc;
 
-    // Tambahkan local track
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
+      localStreamRef.current.getTracks().forEach(track => {
+        pc.addTrack(track, localStreamRef.current!);
+        console.log("🎤 Track ditambahkan:", track.kind);
+      });
     }
 
-    // ICE candidate
     pc.onicecandidate = e => {
-      if (e.candidate)
+      if (e.candidate) {
         wsRef.current?.send(JSON.stringify({ type: "ice", from: clientId, to: peerId, candidate: e.candidate }));
+        console.log("🧊 ICE candidate dikirim:", e.candidate);
+      }
     };
 
-    // Remote track
     pc.ontrack = e => {
       const [remoteStream] = e.streams;
+      console.log("🎵 Remote track diterima:", remoteStream.getTracks().map(t => t.kind));
+
       remoteStream.getAudioTracks().forEach(track => track.enabled = true);
 
-      if (remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
+      if (remoteAudioRef.current) {
+        console.log("🔊 Set remoteAudioRef.srcObject");
         remoteAudioRef.current.srcObject = remoteStream;
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
 
         const tryPlay = () => {
-          remoteAudioRef.current?.play().catch(() => setTimeout(tryPlay, 200));
+          remoteAudioRef.current?.play()
+            .then(() => console.log("✅ Remote audio playing"))
+            .catch(err => {
+              console.warn("⚠️ Remote audio play failed, retrying...", err);
+              setTimeout(tryPlay, 200);
+            });
         };
         tryPlay();
       }
@@ -232,10 +273,12 @@ export default function HomePage() {
       const offer = await pc.createOffer({ offerToReceiveAudio: true });
       await pc.setLocalDescription(offer);
       wsRef.current?.send(JSON.stringify({ type: "offer", from: clientId, to: peerId, offer }));
+      console.log("📤 Offer dikirim:", offer);
     }
   }
 
   async function handleOffer(offer: any, from: string) {
+    console.log("📤 Handling offer from:", from);
     await startWebRTC(from, false);
     if (!pcRef.current) return;
 
@@ -246,9 +289,11 @@ export default function HomePage() {
     const answer = await pcRef.current.createAnswer({ offerToReceiveAudio: true });
     await pcRef.current.setLocalDescription(answer);
     wsRef.current?.send(JSON.stringify({ type: "answer", from: clientId, to: from, answer }));
+    console.log("📥 Answer dikirim:", answer);
   }
 
   async function handleAnswer(answer: any) {
+    console.log("📥 Handling answer");
     if (!pcRef.current) return;
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
     iceQueueRef.current.forEach(c => pcRef.current?.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn));
@@ -256,6 +301,7 @@ export default function HomePage() {
   }
 
   async function handleIce(candidate: any) {
+    console.log("🧊 Handling ICE candidate:", candidate);
     if (!pcRef.current || !pcRef.current.remoteDescription) {
       iceQueueRef.current.push(candidate);
     } else {
@@ -372,7 +418,15 @@ export default function HomePage() {
         )}
 
         {/* Remote Audio */}
-        <audio ref={remoteAudioRef} autoPlay playsInline muted={false} />
+        <audio
+          ref={remoteAudioRef}
+          autoPlay
+          playsInline
+          muted={false}
+          onPlay={() => console.log("🎵 Remote audio playing")}
+          onPause={() => console.log("⏸️ Remote audio paused")}
+          onError={(e) => console.warn("❌ Remote audio error", e)}
+        />
 
         {/* Fallback tombol play audio */}
         {currentPeer && (
