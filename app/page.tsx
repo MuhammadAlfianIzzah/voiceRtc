@@ -28,13 +28,13 @@ export default function HomePage() {
 
   /* ================= INIT ================= */
   useEffect(() => {
+    // Client ID
     let id = localStorage.getItem("clientId");
     if (!id) {
       id = crypto.randomUUID();
       localStorage.setItem("clientId", id);
     }
     setClientId(id);
-
     console.log("🔹 Client ID:", id);
 
     // Request mic
@@ -44,6 +44,7 @@ export default function HomePage() {
         setMicStatus("active");
         console.log("🎤 Mic ready, tracks:", stream.getTracks());
 
+        // Mic level meter
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
@@ -321,8 +322,8 @@ export default function HomePage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`w-4 h-4 rounded-full ${micStatus === "active" ? "bg-green-500 animate-pulse" :
-                micStatus === "muted" ? "bg-gray-400" : "bg-red-500"
-                }`}></div>
+                micStatus === "muted" ? "bg-gray-400" : "bg-red-500"}`
+              }></div>
               <span className="font-medium text-gray-700">
                 {micStatus === "active" ? "🎤 Mikrofon Aktif" :
                   micStatus === "muted" ? "🔇 Mikrofon Muted" : "❌ Mikrofon Error"}
@@ -334,8 +335,8 @@ export default function HomePage() {
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                   : micStatus === "active"
                     ? "bg-red-500 hover:bg-red-600 text-white"
-                    : "bg-green-500 hover:bg-green-600 text-white"
-                  }`}
+                    : "bg-green-500 hover:bg-green-600 text-white"}`
+                }
                 onClick={toggleMic}
                 disabled={micStatus === "broken"}
               >
