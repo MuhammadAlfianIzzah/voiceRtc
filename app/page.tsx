@@ -156,9 +156,7 @@ export default function HomePage() {
     setIncoming(null);
 
     setTimeout(() => {
-      remoteAudioRef.current?.play()
-        .then(() => console.log("✅ Remote audio autoplay started"))
-        .catch(err => console.warn("⚠️ Remote audio autoplay failed", err));
+      forcePlayRemoteAudio();
     }, 200);
   }
 
@@ -208,6 +206,8 @@ export default function HomePage() {
   function forcePlayRemoteAudio() {
     console.log("▶️ forcePlayRemoteAudio clicked", { currentPeer, audioEl: remoteAudioRef.current });
     if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = false;
+      remoteAudioRef.current.volume = 1;
       remoteAudioRef.current.play()
         .then(() => console.log("✅ Remote audio manual play started"))
         .catch(err => console.warn("⚠️ Remote audio manual play failed", err));
@@ -230,6 +230,7 @@ export default function HomePage() {
     });
     pcRef.current = pc;
 
+    // Add local tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
         pc.addTrack(track, localStreamRef.current!);
@@ -246,12 +247,14 @@ export default function HomePage() {
 
     pc.ontrack = e => {
       const [remoteStream] = e.streams;
-      console.log("🎵 Remote track diterima:", remoteStream.getTracks().map(t => t.kind));
+      console.log("🎵 Remote track diterima:", remoteStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
 
-      remoteStream.getAudioTracks().forEach(track => track.enabled = true);
+      remoteStream.getAudioTracks().forEach(track => {
+        track.enabled = true;
+        console.log("🎚️ Remote track enabled", track);
+      });
 
       if (remoteAudioRef.current) {
-        console.log("🔊 Set remoteAudioRef.srcObject");
         remoteAudioRef.current.srcObject = remoteStream;
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
@@ -309,7 +312,6 @@ export default function HomePage() {
       await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
     }
   }
-
   /* ================= UI ================= */
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
