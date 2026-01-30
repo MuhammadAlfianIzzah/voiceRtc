@@ -24,8 +24,7 @@ export default function HomePage() {
   const testAudioRef = useRef<HTMLAudioElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-
-  const iceQueueRef = useRef<any[]>([]); // Queue ICE sementara
+  const iceQueueRef = useRef<any[]>([]);
 
   /* ================= INIT ================= */
   useEffect(() => {
@@ -88,7 +87,7 @@ export default function HomePage() {
           setIncoming(msg);
           break;
         case "call-accept":
-          startWebRTC(msg.from, true);
+          startWebRTC(msg.from, false); // non-initiator
           setCurrentPeer(msg.from);
           setCurrentPeerName(msg.name || "Unknown");
           setCallStatus("connected");
@@ -137,21 +136,14 @@ export default function HomePage() {
     setCallStatus("connected");
     setIncoming(null);
 
-    // Tambahkan delay lebih lama dan coba beberapa kali
-    const attemptPlay = () => {
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.muted = false; // Pastikan unmuted
-        remoteAudioRef.current.volume = 1;
-        remoteAudioRef.current.play()
-          .then(() => console.log("✅ Remote audio playing"))
-          .catch(err => {
-            console.warn("⚠️ Autoplay blocked:", err);
-            setTimeout(attemptPlay, 200); // Retry
-          });
-      }
-    };
-    setTimeout(attemptPlay, 100);
+    // Force play remote audio setelah user klik accept
+    setTimeout(() => {
+      remoteAudioRef.current?.play().catch(() => {
+        console.warn("Autoplay gagal, pengguna harus klik tombol play manual");
+      });
+    }, 200);
   }
+
   function hangupCall(sendSignal = true) {
     if (sendSignal && currentPeer)
       wsRef.current?.send(JSON.stringify({ type: "hangup", from: clientId, to: currentPeer }));
@@ -219,33 +211,21 @@ export default function HomePage() {
 
     // Remote track
     pc.ontrack = e => {
-      console.log("🎵 Remote track received:", e.track.kind);
       const [remoteStream] = e.streams;
-      console.log("Remote stream tracks:", remoteStream.getTracks());
-      console.log("Remote track:", e.track);
-      remoteStream.getTracks().forEach(track => {
-        console.log(`Track ${track.kind}:`, track.enabled, track.muted, track.readyState);
-      });
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.muted = false;
-        remoteAudioRef.current.volume = 1;
-        remoteAudioRef.current.play().then(() => console.log("✅ Remote audio playing"))
-          .catch(err => console.error("❌ Remote audio failed:", err));
-      }
-      if (remoteAudioRef.current && remoteStream) {
+      remoteStream.getAudioTracks().forEach(track => track.enabled = true);
+
+      if (remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
         remoteAudioRef.current.srcObject = remoteStream;
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
 
-        // Play setelah srcObject di-set
-        setTimeout(() => {
-          remoteAudioRef.current?.play()
-            .then(() => console.log("✅ Remote audio started"))
-            .catch(err => console.error("❌ Remote audio failed:", err));
-        }, 100);
+        const tryPlay = () => {
+          remoteAudioRef.current?.play().catch(() => setTimeout(tryPlay, 200));
+        };
+        tryPlay();
       }
     };
+
     pc.oniceconnectionstatechange = () => console.log("ICE state:", pc.iceConnectionState);
 
     if (initiator) {
@@ -260,8 +240,6 @@ export default function HomePage() {
     if (!pcRef.current) return;
 
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer));
-
-    // Drain queued ICE
     iceQueueRef.current.forEach(c => pcRef.current?.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn));
     iceQueueRef.current = [];
 
@@ -273,8 +251,6 @@ export default function HomePage() {
   async function handleAnswer(answer: any) {
     if (!pcRef.current) return;
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-
-    // Drain queued ICE
     iceQueueRef.current.forEach(c => pcRef.current?.addIceCandidate(new RTCIceCandidate(c)).catch(console.warn));
     iceQueueRef.current = [];
   }
@@ -401,7 +377,7 @@ export default function HomePage() {
         {/* Fallback tombol play audio */}
         {currentPeer && (
           <button
-            onClick={() => remoteAudioRef.current?.play()}
+            onClick={forcePlayRemoteAudio}
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
           >
             ▶️ Putar Suara Lawan
