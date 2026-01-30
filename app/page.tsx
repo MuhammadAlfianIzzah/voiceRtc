@@ -137,7 +137,14 @@ export default function HomePage() {
     setCallStatus("connected");
     setIncoming(null);
 
-    forcePlayRemoteAudio();
+    // Force play remote audio setelah user gesture (klik)
+    setTimeout(() => {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.play().catch(err => {
+          console.warn("Autoplay remote audio blocked:", err);
+        });
+      }
+    }, 50);
   }
 
   function hangupCall(sendSignal = true) {
@@ -207,11 +214,14 @@ export default function HomePage() {
 
     // Remote track
     pc.ontrack = e => {
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = e.streams[0];
+      const [remoteStream] = e.streams;
+      if (remoteAudioRef.current && remoteStream) {
+        remoteAudioRef.current.srcObject = remoteStream;
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
-        forcePlayRemoteAudio();
+        remoteAudioRef.current.play().catch(err => {
+          console.warn("Remote audio play failed:", err);
+        });
       }
     };
 
@@ -250,7 +260,6 @@ export default function HomePage() {
 
   async function handleIce(candidate: any) {
     if (!pcRef.current || !pcRef.current.remoteDescription) {
-      // Queue ICE candidate sementara
       iceQueueRef.current.push(candidate);
     } else {
       await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -291,7 +300,7 @@ export default function HomePage() {
               </button>
 
               <button
-                className={`px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition`}
+                className="px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition"
                 onClick={toggleTestMic}
                 disabled={micStatus === "broken"}
               >
@@ -365,7 +374,18 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Remote Audio */}
         <audio ref={remoteAudioRef} autoPlay playsInline muted={false} />
+
+        {/* Fallback tombol play audio */}
+        {currentPeer && (
+          <button
+            onClick={() => remoteAudioRef.current?.play()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
+          >
+            ▶️ Putar Suara Lawan
+          </button>
+        )}
       </div>
     </div>
   );
