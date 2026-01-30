@@ -25,6 +25,7 @@ export default function HomePage() {
   const localStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const iceQueueRef = useRef<any[]>([]);
+
   useEffect(() => {
     let id = localStorage.getItem("clientId");
     if (!id) {
@@ -117,6 +118,7 @@ export default function HomePage() {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, []);
+
   function callUser(to: string) {
     if (callStatus !== "idle") return;
     console.log("📞 Calling:", to);
@@ -179,6 +181,7 @@ export default function HomePage() {
     remoteAudioRef.current.volume = 1;
     remoteAudioRef.current.play().catch(() => setTimeout(forcePlayRemoteAudio, 200));
   }
+
   async function startWebRTC(peerId: string, initiator: boolean) {
     if (pcRef.current) return;
     const pc = new RTCPeerConnection({
@@ -201,6 +204,7 @@ export default function HomePage() {
       await pc.setLocalDescription(offer);
       wsRef.current?.send(JSON.stringify({ type: "offer", from: clientId, to: peerId, offer }));
     }
+
     async function trackRemoteVolume(stream: MediaStream) {
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
@@ -220,6 +224,7 @@ export default function HomePage() {
       animate();
     }
   }
+
   async function handleOffer(offer: any, from: string) {
     await startWebRTC(from, false);
     if (!pcRef.current) return;
@@ -247,94 +252,279 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-4xl font-bold mb-2 text-center text-indigo-900">🎙️ Voice Chat</h1>
-        <p className="text-center text-gray-600 mb-8">ID: {clientId.slice(0, 8)}</p>
+    <div className="min-h-screen bg-[#202124] relative overflow-hidden">
+      {/* Subtle Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.15) 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+      </div>
 
-        {/* Status Card */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+      {/* Main Container */}
+      <div className="relative z-10 flex flex-col h-screen">
+        {/* Header */}
+        <header className="flex items-center justify-between px-6 py-4 bg-[#1a1a1c] border-b border-white/5">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className={`w-4 h-4 rounded-full ${micStatus === "active" ? "bg-green-500 animate-pulse" : micStatus === "muted" ? "bg-gray-400" : "bg-red-500"}`}></div>
-              <span className="font-medium text-gray-700">
-                {micStatus === "active" ? "🎤 Mikrofon Aktif" : micStatus === "muted" ? "🔇 Mikrofon Muted" : "❌ Mikrofon Error"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={toggleMic} disabled={micStatus === "broken"} className={`px-4 py-2 rounded-lg font-medium transition ${micStatus === "broken" ? "bg-gray-300 text-gray-500 cursor-not-allowed" : micStatus === "active" ? "bg-red-500 hover:bg-red-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"}`}>
-                {micStatus === "active" ? "Mute" : "Unmute"}
-              </button>
-              <button onClick={toggleTestMic} disabled={micStatus === "broken"} className="px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition">{testMicOn ? "Stop Test Mic" : "🎧 Test Mic"}</button>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-white font-medium text-lg">Voice Meet</h1>
+                <p className="text-white/50 text-xs font-mono">ID: {clientId.slice(0, 8)}</p>
+              </div>
             </div>
           </div>
 
-          {micStatus !== "broken" && (
-            <div className="mt-3 flex items-center gap-2">
-              <span className="text-sm text-gray-600">Volume:</span>
-              <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-75" style={{ width: `${speaking[clientId] || 0}%` }}></div>
-              </div>
-            </div>
-          )}
-        </div>
+          {/* Status Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+            <div className={`w-2 h-2 rounded-full ${micStatus === "active" ? "bg-green-400 animate-pulse" :
+                micStatus === "muted" ? "bg-gray-400" : "bg-red-400"
+              }`}></div>
+            <span className="text-white/70 text-sm">
+              {micStatus === "active" ? "Connected" : micStatus === "muted" ? "Muted" : "Error"}
+            </span>
+          </div>
+        </header>
 
-        {/* Online Users */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4 text-gray-800">👥 Pengguna Online ({users.length})</h2>
-          {users.length === 0 ? <p className="text-center text-gray-400 py-8">Tidak ada pengguna online</p> :
-            <div className="space-y-3">
-              {users.map(u => {
-                const isInCall = currentPeer === u.client_id;
-                return (
-                  <div key={u.client_id} className={`flex justify-between items-center p-4 border-2 rounded-lg transition ${isInCall ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-indigo-300"}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">{u.name[0]}</div>
-                      <div>
-                        <p className="font-medium text-gray-800">{u.name}</p>
-                        <p className="text-xs text-gray-500">{u.client_id.slice(0, 8)}</p>
-                      </div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex">
+          {/* Center Stage - Call View */}
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            {callStatus === "connected" && (
+              <div className="w-full max-w-3xl">
+                {/* Active Call Card */}
+                <div className="bg-[#2d2e30] rounded-3xl shadow-2xl p-8 border border-white/10">
+                  <div className="flex flex-col items-center text-center mb-8">
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-5xl font-bold mb-4 shadow-2xl ring-4 ring-blue-500/20">
+                      {currentPeerName[0]?.toUpperCase() || "U"}
                     </div>
-                    <button onClick={() => callUser(u.client_id)} disabled={isInCall || callStatus !== "idle"} className={`px-5 py-2 rounded-lg font-medium transition ${isInCall ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-green-500 hover:bg-green-600 text-white"}`}>
-                      {isInCall ? "📞 Sedang Call" : "📞 Panggil"}
+                    <h2 className="text-white text-3xl font-semibold mb-2">{currentPeerName}</h2>
+                    <div className="flex items-center gap-2 text-green-400">
+                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium">Connected</span>
+                    </div>
+                  </div>
+
+                  {/* Call Controls */}
+                  <div className="flex items-center justify-center gap-4">
+                    <button
+                      onClick={toggleMic}
+                      disabled={micStatus === "broken"}
+                      className={`group relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${micStatus === "active"
+                          ? "bg-white/10 hover:bg-white/15"
+                          : "bg-red-500 hover:bg-red-600"
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      title={micStatus === "active" ? "Mute microphone" : "Unmute microphone"}
+                    >
+                      {micStatus === "active" ? (
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                        </svg>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => hangupCall()}
+                      className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
+                      title="End call"
+                    >
+                      <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={forcePlayRemoteAudio}
+                      className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/15 flex items-center justify-center transition-all duration-200"
+                      title="Test audio"
+                    >
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
                     </button>
                   </div>
-                );
-              })}
-            </div>
-          }
-        </div>
 
-        {/* Incoming Call Modal */}
-        {incoming && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center animate-bounce">
-              <h3 className="text-2xl font-bold mb-2 text-gray-800">Panggilan Masuk</h3>
-              <p className="text-gray-600 mb-6 text-lg">{incoming.name}</p>
-              <div className="flex gap-4">
-                <button onClick={() => acceptCall(incoming.from)} className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-medium text-lg">✓ Terima</button>
-                <button onClick={() => hangupCall()} className="flex-1 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium text-lg">✗ Tolak</button>
+                  {/* Audio Level Indicator */}
+                  <div className="mt-6 flex items-center gap-3">
+                    <svg className="w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-100 rounded-full"
+                        style={{ width: `${speaking[clientId] || 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
+
+            {callStatus === "calling" && (
+              <div className="w-full max-w-3xl">
+                <div className="bg-[#2d2e30] rounded-3xl shadow-2xl p-12 border border-white/10 text-center">
+                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-5xl font-bold mb-6 mx-auto shadow-2xl ring-4 ring-blue-500/20 animate-pulse">
+                    {currentPeerName[0]?.toUpperCase() || "U"}
+                  </div>
+                  <h2 className="text-white text-3xl font-semibold mb-2">Calling...</h2>
+                  <p className="text-white/60 text-xl mb-8">{currentPeerName}</p>
+                  <button
+                    onClick={() => hangupCall()}
+                    className="px-8 py-4 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {callStatus === "idle" && (
+              <div className="text-center">
+                <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-12 h-12 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-white/70 text-xl mb-2">No active call</h2>
+                <p className="text-white/40">Select a participant to start calling</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right Sidebar - Participants */}
+          <aside className="w-96 bg-[#1a1a1c] border-l border-white/5 flex flex-col">
+            {/* Sidebar Header */}
+            <div className="p-6 border-b border-white/5">
+              <h3 className="text-white font-semibold text-lg mb-1">Participants</h3>
+              <p className="text-white/50 text-sm">{users.length} available</p>
+            </div>
+
+            {/* Mic Test Section */}
+            <div className="p-4 border-b border-white/5 bg-white/5">
+              <button
+                onClick={toggleTestMic}
+                disabled={micStatus === "broken"}
+                className="w-full px-4 py-3 rounded-lg bg-white/10 hover:bg-white/15 text-white font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+                {testMicOn ? "Stop Mic Test" : "Test Your Microphone"}
+              </button>
+            </div>
+
+            {/* Participants List */}
+            <div className="flex-1 overflow-y-auto">
+              {users.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-white/50 text-sm mb-1">No one else is here</p>
+                  <p className="text-white/30 text-xs">Waiting for others to join...</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-2">
+                  {users.map((u) => {
+                    const isInCall = currentPeer === u.client_id;
+                    return (
+                      <div
+                        key={u.client_id}
+                        className={`group rounded-xl p-4 transition-all duration-200 ${isInCall
+                            ? "bg-blue-500/20 border border-blue-500/30"
+                            : "bg-white/5 hover:bg-white/10 border border-transparent"
+                          }`}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="relative">
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                              {u.name[0].toUpperCase()}
+                            </div>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 border-2 border-[#1a1a1c] rounded-full"></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium truncate">{u.name}</p>
+                            <p className="text-white/40 text-xs font-mono">{u.client_id.slice(0, 8)}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => callUser(u.client_id)}
+                          disabled={isInCall || callStatus !== "idle"}
+                          className={`w-full px-4 py-2.5 rounded-lg font-medium transition-all duration-200 ${isInCall
+                              ? "bg-white/10 text-white/50 cursor-not-allowed"
+                              : "bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl"
+                            }`}
+                        >
+                          {isInCall ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                              In Call
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-center gap-2">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                              </svg>
+                              Call
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {/* Incoming Call Modal */}
+      {incoming && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-[#2d2e30] rounded-3xl shadow-2xl max-w-md w-full mx-4 p-10 text-center border border-white/10">
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-5xl font-bold mb-6 mx-auto shadow-2xl ring-4 ring-blue-500/20 animate-bounce">
+              {incoming.name[0]?.toUpperCase() || "U"}
+            </div>
+            <h3 className="text-white text-2xl font-semibold mb-2">Incoming call</h3>
+            <p className="text-white/60 text-lg mb-8">{incoming.name}</p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => hangupCall()}
+                className="flex-1 px-8 py-4 rounded-full bg-white/10 hover:bg-white/15 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Decline
+              </button>
+              <button
+                onClick={() => acceptCall(incoming.from)}
+                className="flex-1 px-8 py-4 rounded-full bg-green-500 hover:bg-green-600 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                Accept
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Remote Audio */}
-        <audio ref={remoteAudioRef} autoPlay playsInline muted={false} />
-
-        {currentPeer && <button onClick={forcePlayRemoteAudio} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg">▶️ Putar Suara Lawan</button>}
-        {/* Tombol Akhiri Panggilan */}
-        {callStatus !== "idle" && (
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={() => hangupCall()}
-              className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-md transition"
-            >
-              📴 Akhiri Panggilan
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Remote Audio */}
+      <audio ref={remoteAudioRef} autoPlay playsInline muted={false} />
     </div>
   );
 }
