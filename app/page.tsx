@@ -17,6 +17,9 @@ export default function HomePage() {
   const [callStatus, setCallStatus] = useState<"idle" | "calling" | "connected">("idle");
   const [speaking, setSpeaking] = useState<Record<string, number>>({});
   const [testMicOn, setTestMicOn] = useState(false);
+  // mic
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedMic, setSelectedMic] = useState<string>("");
 
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -35,9 +38,18 @@ export default function HomePage() {
     setClientId(id);
     console.log("🔹 Client ID:", id);
     navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
+      .then(async stream => {
+        // localStreamRef.current = stream;
+        // setMicStatus("active");
         localStreamRef.current = stream;
         setMicStatus("active");
+
+        // 🎤 AMBIL LIST MIC SETELAH PERMISSION
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d => d.kind === "audioinput");
+        setAudioDevices(mics);
+        if (mics.length > 0) setSelectedMic(mics[0].deviceId);
+
         console.log("🎤 Mic ready:", stream.getTracks());
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
@@ -157,6 +169,25 @@ export default function HomePage() {
     if (!track) return;
     track.enabled = !track.enabled;
     setMicStatus(track.enabled ? "active" : "muted");
+  }
+  async function changeMic(deviceId: string) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: deviceId } }
+    });
+    const newTrack = stream.getAudioTracks()[0];
+    if (pcRef.current) {
+      const sender = pcRef.current
+        .getSenders()
+        .find(s => s.track?.kind === "audio");
+      sender?.replaceTrack(newTrack);
+    }
+
+    // STOP MIC LAMA
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+
+    localStreamRef.current = stream;
+    setSelectedMic(deviceId);
+    setMicStatus("active");
   }
 
   function toggleTestMic() {
@@ -282,7 +313,7 @@ export default function HomePage() {
           {/* Status Indicator */}
           <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/5 border border-white/10">
             <div className={`w-2 h-2 rounded-full ${micStatus === "active" ? "bg-green-400 animate-pulse" :
-                micStatus === "muted" ? "bg-gray-400" : "bg-red-400"
+              micStatus === "muted" ? "bg-gray-400" : "bg-red-400"
               }`}></div>
             <span className="text-white/70 text-xs sm:text-sm">
               {micStatus === "active" ? "Connected" : micStatus === "muted" ? "Muted" : "Error"}
@@ -315,8 +346,8 @@ export default function HomePage() {
                       onClick={toggleMic}
                       disabled={micStatus === "broken"}
                       className={`group relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${micStatus === "active"
-                          ? "bg-white/10 hover:bg-white/15"
-                          : "bg-red-500 hover:bg-red-600"
+                        ? "bg-white/10 hover:bg-white/15"
+                        : "bg-red-500 hover:bg-red-600"
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       title={micStatus === "active" ? "Mute microphone" : "Unmute microphone"}
                     >
@@ -407,6 +438,23 @@ export default function HomePage() {
               <h3 className="text-white font-semibold text-base sm:text-lg mb-1">Participants</h3>
               <p className="text-white/50 text-xs sm:text-sm">{users.length} available</p>
             </div>
+            {/* change mic */}
+            <div className="mb-3">
+              <label className="block text-white/60 text-xs mb-1">
+                Microphone
+              </label>
+              <select
+                value={selectedMic}
+                onChange={(e) => changeMic(e.target.value)}
+                className="w-full bg-[#2d2e30] text-white text-sm px-3 py-2 rounded-lg border border-white/10"
+              >
+                {audioDevices.map(d => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || "Unknown microphone"}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Mic Test Section */}
             <div className="p-4 border-b border-white/5 bg-white/5">
@@ -442,8 +490,8 @@ export default function HomePage() {
                       <div
                         key={u.client_id}
                         className={`group rounded-xl p-4 transition-all duration-200 ${isInCall
-                            ? "bg-blue-500/20 border border-blue-500/30"
-                            : "bg-white/5 hover:bg-white/10 border border-transparent"
+                          ? "bg-blue-500/20 border border-blue-500/30"
+                          : "bg-white/5 hover:bg-white/10 border border-transparent"
                           }`}
                       >
                         <div className="flex items-center gap-3 mb-3">
@@ -462,8 +510,8 @@ export default function HomePage() {
                           onClick={() => callUser(u.client_id)}
                           disabled={isInCall || callStatus !== "idle"}
                           className={`w-full px-4 py-2.5 rounded-lg font-medium transition-all duration-200 ${isInCall
-                              ? "bg-white/10 text-white/50 cursor-not-allowed"
-                              : "bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl"
+                            ? "bg-white/10 text-white/50 cursor-not-allowed"
+                            : "bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl"
                             }`}
                         >
                           {isInCall ? (
@@ -490,7 +538,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Incoming Call Modal */}
       {incoming && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
           <div className="bg-[#2d2e30] rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-10 text-center border border-white/10">
@@ -522,8 +569,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      {/* Remote Audio */}
       <audio ref={remoteAudioRef} autoPlay playsInline muted={false} />
     </div>
   );
