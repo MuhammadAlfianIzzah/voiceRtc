@@ -17,9 +17,6 @@ export default function HomePage() {
   const [callStatus, setCallStatus] = useState<"idle" | "calling" | "connected">("idle");
   const [speaking, setSpeaking] = useState<Record<string, number>>({});
   const [testMicOn, setTestMicOn] = useState(false);
-  // mic
-  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedMic, setSelectedMic] = useState<string>("");
 
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -38,18 +35,9 @@ export default function HomePage() {
     setClientId(id);
     console.log("🔹 Client ID:", id);
     navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(async stream => {
-        // localStreamRef.current = stream;
-        // setMicStatus("active");
+      .then(stream => {
         localStreamRef.current = stream;
         setMicStatus("active");
-
-        // 🎤 AMBIL LIST MIC SETELAH PERMISSION
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const mics = devices.filter(d => d.kind === "audioinput");
-        setAudioDevices(mics);
-        if (mics.length > 0) setSelectedMic(mics[0].deviceId);
-
         console.log("🎤 Mic ready:", stream.getTracks());
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
@@ -169,25 +157,6 @@ export default function HomePage() {
     if (!track) return;
     track.enabled = !track.enabled;
     setMicStatus(track.enabled ? "active" : "muted");
-  }
-  async function changeMic(deviceId: string) {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { deviceId: { exact: deviceId } }
-    });
-    const newTrack = stream.getAudioTracks()[0];
-    if (pcRef.current) {
-      const sender = pcRef.current
-        .getSenders()
-        .find(s => s.track?.kind === "audio");
-      sender?.replaceTrack(newTrack);
-    }
-
-    // STOP MIC LAMA
-    localStreamRef.current?.getTracks().forEach(t => t.stop());
-
-    localStreamRef.current = stream;
-    setSelectedMic(deviceId);
-    setMicStatus("active");
   }
 
   function toggleTestMic() {
@@ -437,23 +406,6 @@ export default function HomePage() {
             <div className="p-4 sm:p-6 border-b border-white/5">
               <h3 className="text-white font-semibold text-base sm:text-lg mb-1">Participants</h3>
               <p className="text-white/50 text-xs sm:text-sm">{users.length} available</p>
-            </div>
-            {/* change mic */}
-            <div className="mb-3">
-              <label className="block text-white/60 text-xs mb-1">
-                Microphone
-              </label>
-              <select
-                value={selectedMic}
-                onChange={(e) => changeMic(e.target.value)}
-                className="w-full bg-[#2d2e30] text-white text-sm px-3 py-2 rounded-lg border border-white/10"
-              >
-                {audioDevices.map(d => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || "Unknown microphone"}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Mic Test Section */}

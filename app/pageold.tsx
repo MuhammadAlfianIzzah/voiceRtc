@@ -25,10 +25,7 @@ export default function HomePage() {
     const localStreamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const iceQueueRef = useRef<any[]>([]);
-
-    /* ================= INIT ================= */
     useEffect(() => {
-        // Client ID
         let id = localStorage.getItem("clientId");
         if (!id) {
             id = crypto.randomUUID();
@@ -36,15 +33,11 @@ export default function HomePage() {
         }
         setClientId(id);
         console.log("🔹 Client ID:", id);
-
-        // Request mic
         navigator.mediaDevices.getUserMedia({ audio: true })
             .then(stream => {
                 localStreamRef.current = stream;
                 setMicStatus("active");
                 console.log("🎤 Mic ready, tracks:", stream.getTracks());
-
-                // Mic level meter
                 const audioCtx = new AudioContext();
                 const source = audioCtx.createMediaStreamSource(stream);
                 const analyser = audioCtx.createAnalyser();
@@ -72,8 +65,6 @@ export default function HomePage() {
                 setMicStatus("broken");
                 alert("Microphone tidak terdeteksi atau izin ditolak.");
             });
-
-        // WebSocket
         const ws = new WebSocket("wss://ws-voicertc-production.up.railway.app");
         wsRef.current = ws;
 
@@ -136,15 +127,10 @@ export default function HomePage() {
         };
     }, []);
 
-    /* ================= CALL CONTROL ================= */
     function callUser(to: string) {
         console.log("📞 Calling user:", to);
         const user = users.find(u => u.client_id === to);
-
-        // Mulai WebRTC sebagai initiator
         startWebRTC(to, true);
-
-        // Kirim sinyal call via WS
         wsRef.current?.send(JSON.stringify({ type: "call", from: clientId, to }));
 
         setCurrentPeer(to);
@@ -221,8 +207,6 @@ export default function HomePage() {
             console.warn("❌ remoteAudioRef.current belum siap");
         }
     }
-
-    /* ================= WEBRTC ================= */
     async function startWebRTC(peerId: string, initiator: boolean) {
         if (pcRef.current) return;
 
@@ -235,8 +219,6 @@ export default function HomePage() {
             ]
         });
         pcRef.current = pc;
-
-        // Add local tracks
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => {
                 pc.addTrack(track, localStreamRef.current!);
@@ -254,20 +236,14 @@ export default function HomePage() {
         pc.ontrack = e => {
             const [remoteStream] = e.streams;
             console.log("🎵 Remote track diterima:", remoteStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
-
-            // Enable semua track audio
             remoteStream.getAudioTracks().forEach(track => {
                 track.enabled = true;
                 console.log("🎚️ Remote track enabled", track);
             });
-
-            // Pasang ke audio element
             if (remoteAudioRef.current) {
                 remoteAudioRef.current.srcObject = remoteStream;
                 remoteAudioRef.current.muted = false;
                 remoteAudioRef.current.volume = 1;
-
-                // Coba play dengan retry
                 const tryPlay = () => {
                     remoteAudioRef.current?.play()
                         .then(() => console.log("✅ Remote audio playing"))
@@ -278,8 +254,6 @@ export default function HomePage() {
                 };
                 tryPlay();
             }
-
-            // Tracking volume lawan
             trackRemoteVolume(remoteStream);
         };
         function trackRemoteVolume(stream: MediaStream) {
@@ -345,14 +319,11 @@ export default function HomePage() {
             await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
         }
     }
-    /* ================= UI ================= */
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-2xl mx-auto">
                 <h1 className="text-4xl font-bold mb-2 text-center text-indigo-900">🎙️ Voice Chat</h1>
                 <p className="text-center text-gray-600 mb-8">ID: {clientId.slice(0, 8)}</p>
-
-                {/* Status Card */}
                 <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
@@ -387,8 +358,6 @@ export default function HomePage() {
                             </button>
                         </div>
                     </div>
-
-                    {/* Mic Volume Meter */}
                     {micStatus !== "broken" && (
                         <div className="mt-3">
                             <div className="flex items-center gap-2">
@@ -403,8 +372,6 @@ export default function HomePage() {
                         </div>
                     )}
                 </div>
-
-                {/* Online Users */}
                 <div className="bg-white rounded-lg shadow-lg p-6">
                     <h2 className="text-xl font-bold mb-4 text-gray-800">
                         👥 Pengguna Online ({users.length})
@@ -438,8 +405,6 @@ export default function HomePage() {
                         </div>
                     )}
                 </div>
-
-                {/* Incoming Call Modal */}
                 {incoming && (
                     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center animate-bounce">
@@ -452,8 +417,6 @@ export default function HomePage() {
                         </div>
                     </div>
                 )}
-
-                {/* Remote Audio */}
                 <audio
                     ref={remoteAudioRef}
                     autoPlay
@@ -463,8 +426,6 @@ export default function HomePage() {
                     onPause={() => console.log("⏸️ Remote audio paused")}
                     onError={(e) => console.warn("❌ Remote audio error", e)}
                 />
-
-                {/* Fallback tombol play audio */}
                 {currentPeer && (
                     <button
                         onClick={forcePlayRemoteAudio}
